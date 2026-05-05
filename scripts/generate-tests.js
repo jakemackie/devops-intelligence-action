@@ -17,7 +17,7 @@ if (!OPENAI_API_KEY) {
 
 const openai = new OpenAI({ apiKey: OPENAI_API_KEY });
 
-const DIFF_PATH = path.resolve(__dirname, '../pr.diff');
+const DIFF_PATH = path.resolve(process.cwd(), 'pr.diff');
 const OUTPUT_DIR = path.resolve(__dirname, '../../tests/Generated');
 const OUTPUT_FILE = path.join(OUTPUT_DIR, 'AIGeneratedTest.php');
 
