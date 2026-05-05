@@ -15,9 +15,18 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      # Checkout the repo that triggered the workflow (php-test-repo)
+      - name: Checkout caller repo
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
+      # Checkout the repo that ACTUALLY contains our AI script
+      - name: Checkout action repo (contains AI script)
+        uses: actions/checkout@v4
+        with:
+          repository: jakemackie/devops-intelligence-action
+          path: action-repo
 
       - uses: actions/setup-node@v4
         with:
@@ -46,7 +55,7 @@ jobs:
           git diff origin/${{ github.base_ref }} > pr.diff
 
       - name: Run AI review
-        run: node scripts/ai-review.js
+        run: node action-repo/scripts/ai-review.js
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
 
