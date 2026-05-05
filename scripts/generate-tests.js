@@ -3,23 +3,19 @@
 
 import fs from 'fs';
 import path from 'path';
-import { Configuration, OpenAIApi } from 'openai';
+import { OpenAI } from 'openai';
 import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Read OpenAI API key from environment variable
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 if (!OPENAI_API_KEY) {
   console.error('Missing OPENAI_API_KEY environment variable.');
   process.exit(1);
 }
 
-const configuration = new Configuration({
-  apiKey: OPENAI_API_KEY,
-});
-const openai = new OpenAIApi(configuration);
+const openai = new OpenAI({ apiKey: OPENAI_API_KEY });
 
 const DIFF_PATH = path.resolve(__dirname, '../pr.diff');
 const OUTPUT_DIR = path.resolve(__dirname, '../../tests/Generated');
@@ -32,11 +28,10 @@ async function main() {
   }
   const diff = fs.readFileSync(DIFF_PATH, 'utf8');
 
-  // Prompt for OpenAI
   const prompt = `You are an expert PHP developer. Given the following git diff, generate PHPUnit tests for all changed PHP code. Output only the test class code.\n\nDIFF:\n${diff}`;
 
   try {
-    const response = await openai.createChatCompletion({
+    const response = await openai.chat.completions.create({
       model: 'gpt-4',
       messages: [
         { role: 'system', content: 'You are a helpful assistant that writes PHPUnit tests.' },
@@ -45,9 +40,8 @@ async function main() {
       max_tokens: 1500,
       temperature: 0.2,
     });
-    const testCode = response.data.choices[0].message.content.trim();
+    const testCode = response.choices[0].message.content.trim();
 
-    // Ensure output directory exists
     fs.mkdirSync(OUTPUT_DIR, { recursive: true });
     fs.writeFileSync(OUTPUT_FILE, testCode, 'utf8');
     console.log(`Generated tests written to ${OUTPUT_FILE}`);
