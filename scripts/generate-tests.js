@@ -50,6 +50,15 @@ async function main() {
     if (lastBrace !== -1) {
       testCode = testCode.substring(0, lastBrace + 1);
     }
+    // Prepend require_once for index.php after <?php
+    const requireLine = "require_once __DIR__ . '/../../index.php';\n";
+    if (testCode.startsWith('<?php')) {
+      // Insert require after opening tag
+      testCode = testCode.replace('<?php', `<?php\n${requireLine}`);
+    } else {
+      // If for some reason the AI omits the tag, add both
+      testCode = `<?php\n${requireLine}${testCode}`;
+    }
 
     fs.mkdirSync(OUTPUT_DIR, { recursive: true });
     fs.writeFileSync(OUTPUT_FILE, testCode, 'utf8');
