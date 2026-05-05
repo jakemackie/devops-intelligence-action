@@ -1,9 +1,13 @@
 // devops-intelligence-action/scripts/generate-tests.js
 // Script to generate PHPUnit tests for changed PHP files using OpenAI
 
-const fs = require('fs');
-const path = require('path');
-const { Configuration, OpenAIApi } = require('openai');
+import fs from 'fs';
+import path from 'path';
+import { Configuration, OpenAIApi } from 'openai';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Read OpenAI API key from environment variable
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
