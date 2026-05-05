@@ -1,4 +1,5 @@
-const fs = require("fs");
+import fs from "fs";
+import fetch from "node-fetch";
 
 async function main() {
   const diff = fs.readFileSync("pr.diff", "utf8");
