@@ -37,7 +37,7 @@ async function main() {
     data.output?.[0]?.content?.[0]?.text ||
     "No review generated.";
 
-  fs.writeFileSync("review.txt", JSON.stringify(data, null, 2));
+  fs.writeFileSync("review.txt", review);
 }
 
 main();
