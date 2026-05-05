@@ -10,73 +10,75 @@ permissions:
   contents: read
   pull-requests: write
 
-            echo '<?xml version="1.0" encoding="UTF-8"?>
-          # Ensure phpunit.xml exists
-          - name: Ensure phpunit.xml exists
-            run: |
-              if [ ! -f phpunit.xml ]; then
-                echo '<?xml version="1.0" encoding="UTF-8"?>
-            const fs = require('fs');
-            const review = fs.readFileSync('review.txt', 'utf8');
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout caller repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-            github.rest.issues.createComment({
-              issue_number: context.issue.number,
+      - name: Checkout action repo (contains AI script)
+        uses: actions/checkout@v4
+        with:
+          repository: jakemackie/devops-intelligence-action
+          path: action-repo
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install Node deps
+        run: |
+          npm init -y
+          npm install node-fetch
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: 8.2
+
+      - name: Install WPCS
+        run: |
+          composer global config --no-plugins allow-plugins.dealerdirect/phpcodesniffer-composer-installer true
+          composer global require "squizlabs/php_codesniffer:^3.13"
+          composer global require "wp-coding-standards/wpcs:^3.0"
+          phpcs --config-set installed_paths ~/.composer/vendor/wp-coding-standards/wpcs
+
+      - name: Get PR diff
+        run: |
+          git fetch origin ${{ github.base_ref }}
+          git diff origin/${{ github.base_ref }} > pr.diff
+
+      - name: Run AI review
+        run: node action-repo/scripts/ai-review.js
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+
+      - name: Generate AI PHPUnit tests
+        run: node action-repo/scripts/generate-tests.js
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+
+      - name: Ensure phpunit.xml exists
+        run: |
+          if [ ! -f phpunit.xml ]; then
+            cat <<'EOF' > phpunit.xml
+            <?xml version="1.0" encoding="UTF-8"?>
+            <phpunit bootstrap="vendor/autoload.php" colors="true" verbose="true">
+                <testsuites>
+                    <testsuite name="AI Generated Tests">
+                        <directory>./tests/Generated</directory>
+                    </testsuite>
+                </testsuites>
+            </phpunit>
+          EOF
           fi
 
       - name: Install PHPUnit
         run: composer require --dev phpunit/phpunit --with-all-dependencies
-              fi
 
-          - name: Install PHPUnit
-            run: composer require --dev phpunit/phpunit --with-all-dependencies
-
-          - name: Run PHPUnit with coverage
-            run: |
-              ./vendor/bin/phpunit --coverage-text > test-results.txt || true
-
-          - name: Save generated tests for comment
-            run: |
-              if [ -f tests/Generated/AIGeneratedTest.php ]; then
-                cp tests/Generated/AIGeneratedTest.php generated-test.txt
-              else
-                echo "No AI generated test file found." > generated-test.txt
-              fi
-
-          - name: Comment on PR
-            uses: actions/github-script@v7
-            with:
-              script: |
-                const fs = require('fs');
-                const review = fs.readFileSync('review.txt', 'utf8');
-                const tests = fs.readFileSync('generated-test.txt', 'utf8');
-                const testResults = fs.readFileSync('test-results.txt', 'utf8');
-
-                // Extract coverage percentage if present
-                let coverage = '';
-                const coverageMatch = testResults.match(/Lines:\s+(\d+\.\d+)%/);
-                if (coverageMatch) {
-                  coverage = coverageMatch[1] + '%';
-                } else {
-                  coverage = 'N/A';
-                }
-
-                github.rest.issues.createComment({
-                  issue_number: context.issue.number,
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                  body:
-                    '### AI Code Review\n' + review +
-                    '\n---\n' +
-                    '### Tests Generated\n' +
-                    '```php\n' + tests + '\n```' +
-                    '\n---\n' +
-                    '### Test Results\n' +
-                    '```
-
-                    '\n---\n' +
-                    '### Coverage\n' +
-                    coverage
-                });
       - name: Run PHPUnit with coverage
         run: |
           ./vendor/bin/phpunit --coverage-text > test-results.txt || true
@@ -88,7 +90,35 @@ permissions:
           else
             echo "No AI generated test file found." > generated-test.txt
           fi
+
+      - name: Comment on PR
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const review = fs.readFileSync('review.txt', 'utf8');
+            const tests = fs.readFileSync('generated-test.txt', 'utf8');
+            const testResults = fs.readFileSync('test-results.txt', 'utf8');
+            let coverage = '';
+            const coverageMatch = testResults.match(/Lines:\s+(\d+\.\d+)%/);
+            if (coverageMatch) {
+              coverage = coverageMatch[1] + '%';
+            } else {
+              coverage = 'N/A';
+            }
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
               owner: context.repo.owner,
               repo: context.repo.repo,
-              body: "AI Code Review\n\n" + review
+              body:
+                '### AI Code Review\n' + review +
+                '\n---\n' +
+                '### Tests Generated\n' +
+                '```php\n' + tests + '\n```' +
+                '\n---\n' +
+                '### Test Results\n' +
+                '```\n' + testResults + '\n```' +
+                '\n---\n' +
+                '### Coverage\n' +
+                coverage
             });
