@@ -28,7 +28,7 @@ async function main() {
   }
   const diff = fs.readFileSync(DIFF_PATH, 'utf8');
 
-  const prompt = `You are an expert PHP developer. Given the following git diff, generate PHPUnit tests for all changed PHP code. Output only the test class code.\n\nDIFF:\n${diff}`;
+  const prompt = `You are an expert PHP developer. Given the following git diff, generate PHPUnit tests for all changed PHP code. Output only the test class code, and name the class AIGeneratedTest.\n\nDIFF:\n${diff}`;
 
   try {
     const response = await openai.chat.completions.create({
