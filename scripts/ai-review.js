@@ -9,7 +9,7 @@ async function main() {
     return;
   }
 
-  const response = await fetch("https://api.openai.com/v1/chat/completions", {
+  const response = await fetch("https://api.openai.com/v1/responses", {
     method: "POST",
     headers: {
       "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`,
@@ -17,7 +17,7 @@ async function main() {
     },
     body: JSON.stringify({
       model: "gpt-4.1-mini",
-      messages: [
+      input: [
         {
           role: "system",
           content: "You are a senior WordPress engineer performing a PR review. Be concise and practical."
@@ -32,7 +32,10 @@ async function main() {
   });
 
   const data = await response.json();
-  const review = data.choices?.[0]?.message?.content || "No review generated.";
+
+  const review =
+    data.output?.[0]?.content?.[0]?.text ||
+    "No review generated.";
 
   fs.writeFileSync("review.txt", review);
 }
