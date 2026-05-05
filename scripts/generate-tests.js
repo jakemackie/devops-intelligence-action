@@ -42,6 +42,10 @@ async function main() {
     });
     let testCode = response.choices[0].message.content.trim();
     testCode = testCode.replace(/```[a-z]*\n?/gi, '').replace(/```/g, '').trim();
+    const phpStart = testCode.indexOf('<?php');
+    if (phpStart !== -1) {
+      testCode = testCode.substring(phpStart);
+    }
     const lastBrace = testCode.lastIndexOf('}');
     if (lastBrace !== -1) {
       testCode = testCode.substring(0, lastBrace + 1);
