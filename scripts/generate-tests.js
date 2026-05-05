@@ -42,6 +42,10 @@ async function main() {
     });
     let testCode = response.choices[0].message.content.trim();
     testCode = testCode.replace(/```[a-z]*\n?/gi, '').replace(/```/g, '').trim();
+    const lastBrace = testCode.lastIndexOf('}');
+    if (lastBrace !== -1) {
+      testCode = testCode.substring(0, lastBrace + 1);
+    }
 
     fs.mkdirSync(OUTPUT_DIR, { recursive: true });
     fs.writeFileSync(OUTPUT_FILE, testCode, 'utf8');
