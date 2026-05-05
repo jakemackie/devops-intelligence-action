@@ -40,7 +40,8 @@ async function main() {
       max_tokens: 1500,
       temperature: 0.2,
     });
-    const testCode = response.choices[0].message.content.trim();
+    let testCode = response.choices[0].message.content.trim();
+    testCode = testCode.replace(/```[a-z]*\n?/gi, '').replace(/```/g, '').trim();
 
     fs.mkdirSync(OUTPUT_DIR, { recursive: true });
     fs.writeFileSync(OUTPUT_FILE, testCode, 'utf8');
