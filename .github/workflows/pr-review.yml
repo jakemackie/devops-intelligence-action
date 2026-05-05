@@ -35,8 +35,8 @@ jobs:
 
       - name: Install WPCS
         run: |
-          composer global require "squizlabs/php_codesniffer=*"
-          composer global require wp-coding-standards/wpcs
+          composer global require "squizlabs/php_codesniffer:^3.13"
+          composer global require "wp-coding-standards/wpcs:^3.0"
           phpcs --config-set installed_paths ~/.composer/vendor/wp-coding-standards/wpcs
 
       - name: Get PR diff
