@@ -13,6 +13,7 @@ permissions:
 jobs:
   review:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout caller repo
         uses: actions/checkout@v4
@@ -25,20 +26,21 @@ jobs:
           repository: jakemackie/devops-intelligence-action
           path: action-repo
 
-      - uses: actions/setup-node@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
         with:
           node-version: 20
 
-      - name: Install Node deps
+      - name: Install Node deps (caller repo)
         run: |
           npm init -y
           npm install node-fetch
 
-      - name: Install OpenAI SDK
-        run: npm install openai
+      - name: Install OpenAI SDK (action repo)
         working-directory: action-repo
+        run: npm install openai
 
-      - name: Setup PHP
+      - name: Setup PHP with coverage
         uses: shivammathur/setup-php@v2
         with:
           php-version: 8.2
@@ -69,24 +71,44 @@ jobs:
       - name: Ensure phpunit.xml exists
         run: |
           if [ ! -f phpunit.xml ]; then
-            cat <<'EOF' > phpunit.xml
+            cat <<EOF > phpunit.xml
             <?xml version="1.0" encoding="UTF-8"?>
-            <phpunit bootstrap="vendor/autoload.php" colors="true" verbose="true">
+            <phpunit bootstrap="vendor/autoload.php"
+                     colors="true"
+                     verbose="true"
+                     cacheDirectory=".phpunit.cache">
+
                 <testsuites>
                     <testsuite name="AI Generated Tests">
                         <directory>./tests/Generated</directory>
                     </testsuite>
                 </testsuites>
+
+                <coverage>
+                    <report>
+                        <text outputFile="php://stdout"/>
+                    </report>
+                </coverage>
+
+                <source>
+                    <include>
+                        <directory suffix=".php">.</directory>
+                    </include>
+                    <exclude>
+                        <directory>./vendor</directory>
+                        <directory>./tests</directory>
+                    </exclude>
+                </source>
+
             </phpunit>
-          EOF
+            EOF
           fi
 
       - name: Install PHPUnit
         run: composer require --dev phpunit/phpunit --with-all-dependencies
 
       - name: Run PHPUnit with coverage
-        run: |
-          ./vendor/bin/phpunit --coverage-text > test-results.txt || true
+        run: ./vendor/bin/phpunit --coverage-text > test-results.txt || true
 
       - name: Save generated tests for comment
         run: |
@@ -104,26 +126,18 @@ jobs:
             const review = fs.readFileSync('review.txt', 'utf8');
             const tests = fs.readFileSync('generated-test.txt', 'utf8');
             const testResults = fs.readFileSync('test-results.txt', 'utf8');
-            let coverage = '';
-            const coverageMatch = testResults.match(/Lines:\s+(\d+\.\d+)%/);
-            if (coverageMatch) {
-              coverage = coverageMatch[1] + '%';
-            } else {
-              coverage = 'N/A';
-            }
+
+            let coverage = 'N/A';
+            const match = testResults.match(/Lines:\s+(\d+\.\d+)%/);
+            if (match) coverage = match[1] + '%';
+
             github.rest.issues.createComment({
               issue_number: context.issue.number,
               owner: context.repo.owner,
               repo: context.repo.repo,
               body:
                 '### AI Code Review\n' + review +
-                '\n---\n' +
-                '### Tests Generated\n' +
-                '```php\n' + tests + '\n```' +
-                '\n---\n' +
-                '### Test Results\n' +
-                '```\n' + testResults + '\n```' +
-                '\n---\n' +
-                '### Coverage\n' +
-                coverage
+                '\n---\n### Tests Generated\n```php\n' + tests +
+                '\n```\n---\n### Test Results\n```\n' + testResults +
+                '\n```\n---\n### Coverage\n' + coverage
             });
