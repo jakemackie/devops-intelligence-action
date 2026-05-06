@@ -135,8 +135,6 @@ jobs:
 
             let coverage = 'N/A';
 
-            let coverage = 'N/A';
-
             try {
               const xml = fs.readFileSync('coverage.xml', 'utf8');
 
