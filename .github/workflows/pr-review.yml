@@ -138,22 +138,22 @@ jobs:
             try {
               const xml = fs.readFileSync('coverage.xml', 'utf8');
 
-            // match common Clover attribute formats
-            const matches = [
-              xml.match(/statementpercent="([\d.]+)"/),
-              xml.match(/statements-covered="(\d+)".*?statements="(\d+)"/),
-              xml.match(/<metrics[\s\S]*?statements[\s\S]*?coveredstatements="(\d+)"/)
-            ];
+              const match =
+                xml.match(/statementsCovered="(\d+)"/) ||
+                xml.match(/coveredstatements="(\d+)"/);
 
-            // try first valid match
-            for (const m of matches) {
-              if (m) {
-                coverage = (m[1] ?? m[0]).toString() + '%';
-                break;
+              const total =
+                xml.match(/statements="(\d+)"/);
+
+              if (match && total) {
+                const covered = Number(match[1]);
+                const all = Number(total[1]);
+
+                if (all > 0) {
+                  coverage = ((covered / all) * 100).toFixed(2) + '%';
+                }
               }
-            }
-
-            } catch (e) {
+            } catch {
               coverage = 'N/A';
             }
 
