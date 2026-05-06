@@ -18,28 +18,33 @@ async function main() {
     body: JSON.stringify({
       model: "gpt-4.1-mini",
       temperature: 0.2,
+
+      // 🔥 key improvement: enforce JSON mode
+      response_format: { type: "json_object" },
+
       messages: [
         {
           role: "system",
           content: `
 You are a senior WordPress engineer reviewing a pull request.
 
-Return ONLY valid JSON in this exact format:
+Return a JSON object only.
 
+Schema:
 {
-  "summary": "short summary",
+  "summary": string,
   "issues": [
     {
-      "severity": "high | medium | low",
-      "file": "file path",
-      "line": "line number or null",
-      "issue": "what is wrong",
-      "suggestion": "how to fix"
+      "severity": "high" | "medium" | "low",
+      "file": string,
+      "line": string | null,
+      "issue": string,
+      "suggestion": string
     }
   ]
 }
 
-If there are no issues, return:
+If no issues:
 {
   "summary": "No issues found",
   "issues": []
@@ -55,23 +60,34 @@ If there are no issues, return:
   });
 
   const data = await response.json();
-  const raw = data.choices?.[0]?.message?.content || "{}";
+
+  // 🔥 HARD FAILURE CHECK (important)
+  if (!response.ok) {
+    fs.writeFileSync(
+      "review.txt",
+      `## 🤖 AI Code Review\n\nERROR: ${data?.error?.message || "Unknown API error"}`
+    );
+    process.exit(0);
+  }
+
+  const raw = data.choices?.[0]?.message?.content;
 
   let parsed;
 
   try {
     parsed = JSON.parse(raw);
-  } catch {
-    parsed = {
-      summary: "AI returned invalid JSON",
-      issues: []
-    };
+  } catch (e) {
+    fs.writeFileSync(
+      "review.txt",
+      "## 🤖 AI Code Review\n\nERROR: Failed to parse AI JSON response."
+    );
+    return;
   }
 
   let output = `## 🤖 AI Code Review\n\n`;
   output += `**Summary:** ${parsed.summary}\n\n`;
 
-  if (!parsed.issues.length) {
+  if (!parsed.issues?.length) {
     output += "No issues found 🎉";
   } else {
     parsed.issues.forEach((issue, i) => {

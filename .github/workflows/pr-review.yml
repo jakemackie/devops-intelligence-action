@@ -106,9 +106,11 @@ jobs:
       - name: Install PHPUnit
         run: composer require --dev phpunit/phpunit --with-all-dependencies
 
-      - name: Run PHPUnit with coverage
+      - name: Run PHPUnit with coverage (Clover)
         run: |
-          XDEBUG_MODE=coverage ./vendor/bin/phpunit --coverage-text > test-results.txt || true
+          XDEBUG_MODE=coverage ./vendor/bin/phpunit \
+            --coverage-clover=coverage.xml \
+            --coverage-text > test-results.txt || true
 
       - name: Save generated tests for comment
         run: |
@@ -118,6 +120,10 @@ jobs:
             echo "No AI generated test file found." > generated-test.txt
           fi
 
+      - name: Install XML parser
+        working-directory: action-repo
+        run: npm install fast-xml-parser
+
       - name: Comment on PR
         uses: actions/github-script@v7
         with:
@@ -126,10 +132,30 @@ jobs:
             const review = fs.readFileSync('review.txt', 'utf8');
             const tests = fs.readFileSync('generated-test.txt', 'utf8');
             const testResults = fs.readFileSync('test-results.txt', 'utf8');
+            const { XMLParser } = require('fast-xml-parser');
 
             let coverage = 'N/A';
-            const match = testResults.match(/Lines:\s+(\d+\.\d+)%/);
-            if (match) coverage = match[1] + '%';
+
+            try {
+              const xml = fs.readFileSync('coverage.xml', 'utf8');
+
+              const parser = new XMLParser({ ignoreAttributes: false });
+              const result = parser.parse(xml);
+
+              const metrics =
+                result?.coverage?.project?.metrics ||
+                result?.coverage?.project?.[0]?.metrics;
+
+              const value =
+                metrics?.statements?.["@_percent"] ||
+                metrics?.statements?.percent;
+
+              if (value !== undefined) {
+                coverage = value + '%';
+              }
+            } catch (e) {
+              coverage = 'N/A';
+            }
 
             github.rest.issues.createComment({
               issue_number: context.issue.number,
