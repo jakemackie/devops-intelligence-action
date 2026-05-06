@@ -71,37 +71,36 @@ jobs:
       - name: Ensure phpunit.xml exists
         run: |
           if [ ! -f phpunit.xml ]; then
-            cat <<'EOF' > phpunit.xml
-            <?xml version="1.0" encoding="UTF-8"?>
-            <phpunit bootstrap="vendor/autoload.php"
-                    colors="true"
-                    verbose="true"
-                    cacheDirectory=".phpunit.cache">
-
-              <testsuites>
-                <testsuite name="AI Generated Tests">
-                  <directory>./tests/Generated</directory>
-                </testsuite>
-              </testsuites>
-
-              <coverage>
-                <report>
-                  <text outputFile="php://stdout"/>
-                </report>
-              </coverage>
-
-              <source>
-                <include>
-                  <directory suffix=".php">.</directory>
-                </include>
-                <exclude>
-                  <directory>./vendor</directory>
-                  <directory>./tests</directory>
-                </exclude>
-              </source>
-
-            </phpunit>
-            EOF
+            printf '%s\n' \
+            '<?xml version="1.0" encoding="UTF-8"?>' \
+            '<phpunit bootstrap="vendor/autoload.php"' \
+            '        colors="true"' \
+            '        verbose="true"' \
+            '        cacheDirectory=".phpunit.cache">' \
+            '' \
+            '  <testsuites>' \
+            '    <testsuite name="AI Generated Tests">' \
+            '      <directory>./tests/Generated</directory>' \
+            '    </testsuite>' \
+            '  </testsuites>' \
+            '' \
+            '  <coverage>' \
+            '    <report>' \
+            '      <text outputFile="php://stdout"/>' \
+            '    </report>' \
+            '  </coverage>' \
+            '' \
+            '  <source>' \
+            '    <include>' \
+            '      <directory suffix=".php">.</directory>' \
+            '    </include>' \
+            '    <exclude>' \
+            '      <directory>./vendor</directory>' \
+            '      <directory>./tests</directory>' \
+            '    </exclude>' \
+            '  </source>' \
+            '' \
+            '</phpunit>' > phpunit.xml
           fi
 
       - name: Install PHPUnit
