@@ -132,26 +132,18 @@ jobs:
             const review = fs.readFileSync('review.txt', 'utf8');
             const tests = fs.readFileSync('generated-test.txt', 'utf8');
             const testResults = fs.readFileSync('test-results.txt', 'utf8');
-            const { XMLParser } = require('fast-xml-parser');
+
+            let coverage = 'N/A';
 
             let coverage = 'N/A';
 
             try {
               const xml = fs.readFileSync('coverage.xml', 'utf8');
 
-              const parser = new XMLParser({ ignoreAttributes: false });
-              const result = parser.parse(xml);
+              const match = xml.match(/<metrics[^>]*>[\s\S]*?<statements[^>]*percent="([\d.]+)"/);
 
-              const metrics =
-                result?.coverage?.project?.metrics ||
-                result?.coverage?.project?.[0]?.metrics;
-
-              const value =
-                metrics?.statements?.["@_percent"] ||
-                metrics?.statements?.percent;
-
-              if (value !== undefined) {
-                coverage = value + '%';
+              if (match) {
+                coverage = match[1] + '%';
               }
             } catch (e) {
               coverage = 'N/A';
