@@ -71,38 +71,38 @@ jobs:
       - name: Ensure phpunit.xml exists
         run: |
           if [ ! -f phpunit.xml ]; then
-            cat <<EOF > phpunit.xml
+            cat <<'EOF' > phpunit.xml
             <?xml version="1.0" encoding="UTF-8"?>
             <phpunit bootstrap="vendor/autoload.php"
-                     colors="true"
-                     verbose="true"
-                     cacheDirectory=".phpunit.cache">
+                    colors="true"
+                    verbose="true"
+                    cacheDirectory=".phpunit.cache">
 
-                <testsuites>
-                    <testsuite name="AI Generated Tests">
-                        <directory>./tests/Generated</directory>
-                    </testsuite>
-                </testsuites>
+              <testsuites>
+                <testsuite name="AI Generated Tests">
+                  <directory>./tests/Generated</directory>
+                </testsuite>
+              </testsuites>
 
-                <coverage>
-                    <report>
-                        <text outputFile="php://stdout"/>
-                    </report>
-                </coverage>
+              <coverage>
+                <report>
+                  <text outputFile="php://stdout"/>
+                </report>
+              </coverage>
 
-                <source>
-                    <include>
-                        <directory suffix=".php">.</directory>
-                    </include>
-                    <exclude>
-                        <directory>./vendor</directory>
-                        <directory>./tests</directory>
-                    </exclude>
-                </source>
+              <source>
+                <include>
+                  <directory suffix=".php">.</directory>
+                </include>
+                <exclude>
+                  <directory>./vendor</directory>
+                  <directory>./tests</directory>
+                </exclude>
+              </source>
 
             </phpunit>
             EOF
-          fi
+                      fi
 
       - name: Install PHPUnit
         run: composer require --dev phpunit/phpunit --with-all-dependencies
