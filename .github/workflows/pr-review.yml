@@ -70,8 +70,7 @@ jobs:
 
       - name: Ensure phpunit.xml exists
         run: |
-          if [ ! -f phpunit.xml ]; then
-            cat <<'EOF' > phpunit.xml
+          if [ ! -f phpunit.xml ]; then cat <<'EOF' > phpunit.xml
             <?xml version="1.0" encoding="UTF-8"?>
             <phpunit bootstrap="vendor/autoload.php"
                     colors="true"
@@ -102,7 +101,7 @@ jobs:
 
             </phpunit>
             EOF
-                      fi
+          fi
 
       - name: Install PHPUnit
         run: composer require --dev phpunit/phpunit --with-all-dependencies
