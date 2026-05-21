@@ -1,0 +1,65 @@
+name: Release Evidence Pack
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Version label for evidence bundle (for example v1.0.0)
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  evidence:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Validate script syntax
+        run: |
+          node --check scripts/ai-review.js
+          node --check scripts/generate-tests.js
+          node --check scripts/sync-clickup.js
+
+      - name: Build release manifest
+        run: |
+          cat > release-manifest.json <<EOF
+          {
+            "version": "${{ inputs.version }}",
+            "generatedAt": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "evidence": {
+              "architecture": "docs/architecture-data-flow.md",
+              "testingQa": "docs/testing-qa-debug-plan.md",
+              "ksbMatrix": "docs/ksb-coverage-matrix.md",
+              "deploymentPlan": "docs/deployment-release-plan.md",
+              "devVsDevops": "docs/dev-vs-devops-roles.md",
+              "submissionChecklist": "docs/final-submission-checklist.md"
+            }
+          }
+          EOF
+
+      - name: Upload release evidence bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: devops-intelligence-evidence-${{ inputs.version }}
+          if-no-files-found: error
+          path: |
+            docs/architecture-data-flow.md
+            docs/testing-qa-debug-plan.md
+            docs/ksb-coverage-matrix.md
+            docs/deployment-release-plan.md
+            docs/dev-vs-devops-roles.md
+            docs/final-submission-checklist.md
+            release-manifest.json

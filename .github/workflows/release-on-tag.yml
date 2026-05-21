@@ -1,0 +1,43 @@
+name: Publish Tagged Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Create release notes body
+        run: |
+          cat > RELEASE_NOTES.md <<EOF
+          DevOps Intelligence Layer release ${{ github.ref_name }}
+
+          Included evidence documents:
+          - docs/architecture-data-flow.md
+          - docs/testing-qa-debug-plan.md
+          - docs/ksb-coverage-matrix.md
+          - docs/deployment-release-plan.md
+          - docs/dev-vs-devops-roles.md
+          - docs/final-submission-checklist.md
+          EOF
+
+      - name: Publish GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          body_path: RELEASE_NOTES.md
+          files: |
+            docs/architecture-data-flow.md
+            docs/testing-qa-debug-plan.md
+            docs/ksb-coverage-matrix.md
+            docs/deployment-release-plan.md
+            docs/dev-vs-devops-roles.md
+            docs/final-submission-checklist.md

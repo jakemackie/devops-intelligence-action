@@ -2,8 +2,18 @@ name: DevOps Intelligence PR Review
 
 on:
   workflow_call:
+    inputs:
+      clickup_list_id:
+        required: true
+        type: string
+      wpcs_strict:
+        required: false
+        type: boolean
+        default: false
     secrets:
       OPENAI_API_KEY:
+        required: true
+      CLICKUP_API_TOKEN:
         required: true
 
 permissions:
@@ -13,6 +23,9 @@ permissions:
 jobs:
   review:
     runs-on: ubuntu-latest
+    concurrency:
+      group: devops-intel-${{ github.repository }}-pr-${{ github.event.pull_request.number }}
+      cancel-in-progress: true
 
     steps:
       - name: Checkout caller repo
@@ -31,14 +44,9 @@ jobs:
         with:
           node-version: 20
 
-      - name: Install Node deps (caller repo)
-        run: |
-          npm init -y
-          npm install node-fetch
-
-      - name: Install OpenAI SDK (action repo)
+      - name: Install workflow script deps (action repo)
         working-directory: action-repo
-        run: npm install openai
+        run: npm install
 
       - name: Setup PHP with coverage
         uses: shivammathur/setup-php@v2
@@ -57,6 +65,24 @@ jobs:
         run: |
           git fetch origin ${{ github.base_ref }}
           git diff origin/${{ github.base_ref }} > pr.diff
+
+      - name: Run WPCS on changed PHP files
+        run: |
+          CHANGED_PHP_FILES=$(git diff --name-only origin/${{ github.base_ref }} -- '*.php' | tr '\n' ' ')
+          if [ -z "$CHANGED_PHP_FILES" ]; then
+            echo "No changed PHP files detected for WPCS." > wpcs-results.txt
+            echo "0" > wpcs-exit-code.txt
+          else
+            set +e
+            phpcs --standard=WordPress $CHANGED_PHP_FILES > wpcs-results.txt
+            WPCS_EXIT=$?
+            set -e
+            echo "$WPCS_EXIT" > wpcs-exit-code.txt
+            if [ "$WPCS_EXIT" -ne 0 ] && [ "${{ inputs.wpcs_strict }}" = "true" ]; then
+              echo "WPCS strict mode enabled; failing workflow on lint violations."
+              exit "$WPCS_EXIT"
+            fi
+          fi
 
       - name: Run AI review
         run: node action-repo/scripts/ai-review.js
@@ -120,6 +146,31 @@ jobs:
             echo "No AI generated test file found." > generated-test.txt
           fi
 
+      - name: Sync AI review into ClickUp subtasks
+        run: node action-repo/scripts/sync-clickup.js
+        continue-on-error: true
+        env:
+          CLICKUP_API_TOKEN: ${{ secrets.CLICKUP_API_TOKEN }}
+          CLICKUP_LIST_ID: ${{ inputs.clickup_list_id }}
+          GITHUB_TOKEN: ${{ github.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+
+      - name: Ensure ClickUp sync output exists
+        run: |
+          if [ ! -f clickup-sync.txt ]; then
+            echo "ClickUp sync step did not produce output." > clickup-sync.txt
+          fi
+          if [ ! -f clickup-sync.json ]; then
+            printf '%s\n' '{"ok":false,"error":"No ClickUp JSON output produced."}' > clickup-sync.json
+          fi
+
+      - name: Build run summary JSON
+        run: |
+          node -e "const fs=require('fs');const read=(p,d='')=>fs.existsSync(p)?fs.readFileSync(p,'utf8'):d;const ec=Number((read('wpcs-exit-code.txt','0').trim()||'0'));const summary={wpcs:{strict:${{ inputs.wpcs_strict }},exitCode:ec,passed:ec===0},artifacts:{review:fs.existsSync('review.txt'),generatedTests:fs.existsSync('generated-test.txt'),testResults:fs.existsSync('test-results.txt'),coverage:fs.existsSync('coverage.xml')},clickup:JSON.parse(read('clickup-sync.json','{\"ok\":false,\"error\":\"missing\"}'))};fs.writeFileSync('run-summary.json',JSON.stringify(summary,null,2));"
+
       - name: Install XML parser
         working-directory: action-repo
         run: npm install fast-xml-parser
@@ -132,6 +183,12 @@ jobs:
             const review = fs.readFileSync('review.txt', 'utf8');
             const tests = fs.readFileSync('generated-test.txt', 'utf8');
             const testResults = fs.readFileSync('test-results.txt', 'utf8');
+            const wpcsResults = fs.existsSync('wpcs-results.txt')
+              ? fs.readFileSync('wpcs-results.txt', 'utf8')
+              : 'No WPCS results available.';
+            const clickupSync = fs.existsSync('clickup-sync.txt')
+              ? fs.readFileSync('clickup-sync.txt', 'utf8')
+              : 'No ClickUp sync output available.';
 
             let coverage = 'N/A';
 
@@ -163,7 +220,27 @@ jobs:
               repo: context.repo.repo,
               body:
                 '### AI Code Review\n' + review +
+                '\n---\n### WPCS Lint Output\n```\n' + wpcsResults +
+                '\n```\n---\n### ClickUp Sync\n```\n' + clickupSync +
+                '\n```' +
                 '\n---\n### Tests Generated\n```php\n' + tests +
                 '\n```\n---\n### Test Results\n```\n' + testResults +
                 '\n```\n---\n### Coverage\n' + coverage
             });
+
+      - name: Upload pipeline evidence artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: devops-intel-pr-${{ github.event.pull_request.number }}
+          if-no-files-found: warn
+          path: |
+            pr.diff
+            review.txt
+            wpcs-results.txt
+            wpcs-exit-code.txt
+            generated-test.txt
+            test-results.txt
+            coverage.xml
+            clickup-sync.txt
+            clickup-sync.json
+            run-summary.json

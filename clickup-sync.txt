@@ -1,0 +1,8 @@
+ClickUp sync completed.
+Parent task mode: created
+Parent task: 86c9xj836
+Subtasks created: 0
+Subtasks updated: 0
+Review-comment subtasks created: 0
+Review-comment subtasks updated: 0
+Existing subtasks not touched: 0
