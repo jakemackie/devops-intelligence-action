@@ -59,7 +59,9 @@ jobs:
           composer global config --no-plugins allow-plugins.dealerdirect/phpcodesniffer-composer-installer true
           composer global require "squizlabs/php_codesniffer:^3.13"
           composer global require "wp-coding-standards/wpcs:^3.0"
-          phpcs --config-set installed_paths ~/.composer/vendor/wp-coding-standards/wpcs
+          COMPOSER_HOME=$(composer global config home)
+          phpcs --config-set installed_paths "$COMPOSER_HOME/vendor/wp-coding-standards/wpcs,$COMPOSER_HOME/vendor/phpcsstandards/phpcsutils,$COMPOSER_HOME/vendor/phpcsstandards/phpcsextra"
+          phpcs -i
 
       - name: Get PR diff
         run: |
